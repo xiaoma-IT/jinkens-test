@@ -13,6 +13,6 @@ public class Test {
 
     @GetMapping("/")
     public String showMsg() {
-        return "部署成功，版本v22";
+        return "部署成功，版本v23";
     }
 }
