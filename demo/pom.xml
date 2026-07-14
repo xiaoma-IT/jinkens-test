@@ -20,8 +20,6 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
     </properties>
 
     <dependencies>
@@ -51,7 +49,7 @@
         </plugins>
     </build>
 
-    <!-- 阿里云Maven源，解决每次大量下载pom、下载慢 -->
+    <!-- 阿里云Maven源，加速依赖下载 -->
     <repositories>
         <repository>
             <id>aliyun-central</id>
