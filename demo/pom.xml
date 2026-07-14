@@ -12,9 +12,8 @@
     </parent>
 
     <groupId>test</groupId>
-    <artifactId>jenkins-demo</artifactId>
+    <artifactId>jenkins-web</artifactId>
     <version>1.0</version>
-    <name>jenkins-demo</name>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -36,7 +35,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>Test</mainClass>
+                    <mainClass>app.Application</mainClass>
                 </configuration>
                 <executions>
                     <execution>
@@ -52,7 +51,7 @@
     <!-- 阿里云Maven源，加速依赖下载 -->
     <repositories>
         <repository>
-            <id>aliyun-central</id>
+            <id>aliyun-public</id>
             <url>https://maven.aliyun.com/repository/public</url>
             <releases>
                 <enabled>true</enabled>
@@ -65,7 +64,7 @@
     </repositories>
     <pluginRepositories>
         <pluginRepository>
-            <id>aliyun-central</id>
+            <id>aliyun-public</id>
             <url>https://maven.aliyun.com/repository/public</url>
             <releases>
                 <enabled>true</enabled>
