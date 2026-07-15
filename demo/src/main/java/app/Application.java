@@ -15,6 +15,6 @@ public class Application {
 
     @GetMapping("/")
     public String index() {
-        return "部署成功，网页正常访问v33";
+        return "部署成功，网页正常访问v34";
     }
 }
