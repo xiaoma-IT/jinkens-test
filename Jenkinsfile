@@ -49,7 +49,7 @@ pipeline {
         stage('2. 构建镜像 & 推送Harbor') {
             steps {
                 // 安全登录，无明文密码打印日志
-                withCredentials([string(credentialsId: 'harbor-auth', variable: 'harborSecret')]) {
+                withCredentials([string(credentialsId: 'harbor', variable: 'harborSecret')]) {
                     sh '''
                         cd demo
                         echo ${HARBOR_PWD} | docker login ${HARBOR_ADDR} -u ${HARBOR_USER} --password-stdin
