@@ -32,7 +32,7 @@ pipeline {
                     env.CONTAINER_NAME = env.DEPLOY_ENV == 'prod' ? env.PROD_CONTAINER_NAME : env.TEST_CONTAINER_NAME
 
                     env.GIT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                    env.IMAGE_TAG = "v${BUILD_NUMBER}-${env.GIT_COMMIT}"
+                    env.IMAGE_TAG = "v${BUILD_NUMBER}"
                     env.FULL_IMG = "${env.HARBOR_ADDR}/${env.FULL_REPO}:${env.IMAGE_TAG}"
                 }
             }
