@@ -1,50 +1,65 @@
 pipeline {
-    // 执行节点，企业一般用agent标签区分构建机
     agent any
-    // 全局环境变量，自动读取加密凭据
-    environment {
-        DING_WEBHOOK = credentials('dingding-webhook')
-
-        // 仓库固定信息
-        HARBOR_ADDR = "192.168.120.11"
-        HARBOR_REPO = "pipeline/pipeline-demo"
-        // 镜像tag：构建号+git短commit，方便追溯回滚
-        GIT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-        IMAGE_TAG = "v${BUILD_NUMBER}-${GIT_COMMIT}"
-        FULL_IMG = "${HARBOR_ADDR}/${HARBOR_REPO}:${IMAGE_TAG}"
-
-        // 部署目标机器
-        SSH_SERVER = "master01"
-        CONTAINER_NAME = "pipeline-app"
-        NAMESPACE = "k8s.io"
-    }
-
-    // 流水线参数，支持手动输入切换环境
+    // 手动构建下拉选择环境
     parameters {
         choice(name: 'DEPLOY_ENV', choices: ['test', 'prod'], description: '部署环境')
     }
+    
+    environment {
+        DEPLOY_ENV = params.DEPLOY_ENV
+        DING_WEBHOOK = credentials('dingding-webhook')
 
-    // 全局选项：超时、丢弃旧构建、禁用并行
-    options {
-        timestamps() // 日志打印时间戳
-        timeout(time: 15, unit: 'MINUTES') // 15分钟超时失败
-        buildDiscarder(logRotator(numToKeepStr: '20')) // 保留20条构建记录
+        // Harbor基础地址
+        HARBOR_ADDR = "192.168.120.11"
+        TEST_HARBOR_REPO = "java/java-demo"
+        PROD_HARBOR_REPO = "pipeline/pipeline-demo"
+
+        // Publish Over SSH 全局配置名称
+        PROD_SSH_SERVER = "master01"
+        TEST_SSH_SERVER = "master02"
+
+        // 容器名称环境隔离
+        PROD_CONTAINER_NAME = "pipeline-app"
+        TEST_CONTAINER_NAME = "test-app"
+        
+        NAMESPACE = "k8s.io"
+
+        // 三元表达式自动切换环境配置
+        FULL_REPO = DEPLOY_ENV == 'prod' ? PROD_HARBOR_REPO : TEST_HARBOR_REPO
+        REMOTE_HOST = DEPLOY_ENV == 'prod' ? PROD_SSH_SERVER : TEST_SSH_SERVER
+        CONTAINER_NAME = DEPLOY_ENV == 'prod' ? PROD_CONTAINER_NAME : TEST_CONTAINER_NAME
+
+        // 先占位，镜像tag在打包阶段动态赋值
+        GIT_COMMIT = ""
+        IMAGE_TAG = ""
+        FULL_IMG = ""
     }
 
-    // 分阶段流程
+    options {
+        timestamps()
+        timeout(time: 15, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
     stages {
-        stage('1. 代码校验 & Maven打包') {
+        stage('1. Maven 编译打包') {
             steps {
                 sh '''
                     cd demo
                     mvn clean package -DskipTests
                 '''
+                // 移到stage内执行git命令，兼容所有Jenkins版本
+                script {
+                    env.GIT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                    env.IMAGE_TAG = "v${BUILD_NUMBER}-${env.GIT_COMMIT}"
+                    env.FULL_IMG = "${HARBOR_ADDR}/${FULL_REPO}:${env.IMAGE_TAG}"
+                }
             }
         }
 
         stage('2. 构建镜像 & 推送Harbor') {
             steps {
-                // 安全登录，无明文密码打印日志
+                // 读取Harbor账号密码凭据，无明文打印
                 withCredentials([usernamePassword(credentialsId: 'harbor', passwordVariable: 'HARBOR_PWD', usernameVariable: 'HARBOR_USER')]) {
                     sh '''
                         cd demo
@@ -56,70 +71,84 @@ pipeline {
                 }
             }
         }
-        stage('3. 生产部署确认') {
+
+        // 仅prod环境弹出确认框，test直接跳过
+        stage('3. 生产发布确认') {
+            when {
+                environment name: 'DEPLOY_ENV', value: 'prod'
+            }
             steps {
-                input message: '确认发布到生产环境？', ok: '确认发布'
+                input message: "确认发布到【${DEPLOY_ENV}】环境？", ok: '确认发布'
             }
         }
 
-        stage('4. 远程服务器部署 containerd') {
+        stage('4. 远程 containerd 部署') {
             steps {
-                // 调用全局配置好的SSH服务器，不用手写ssh -i
-                sshPublisher(publishers: [sshPublisherDesc(
-                    configName: SSH_SERVER,
-                    transfers: [sshTransfer(
-                        postTransfers: [sshCommand(command: '''
-                            # 拉取镜像
-                            crictl pull --auth ${HARBOR_USER}:${HARBOR_PWD} ${FULL_IMG}
-
-                            # 循环清理运行中容器，彻底解决删除报错
-                            while ctr -n ${NAMESPACE} c list | grep -q ${CONTAINER_NAME}; do
-                                ctr -n ${NAMESPACE} tasks kill ${CONTAINER_NAME} 2>/dev/null
-                                sleep 3
-                                ctr -n ${NAMESPACE} c delete ${CONTAINER_NAME} 2>/dev/null
-                            done
-                            # 清理快照
-                            ctr -n ${NAMESPACE} snapshot rm ${CONTAINER_NAME} 2>/dev/null || true
-
-                            # 启动容器，时区环境变量规避挂载报错
-                            ctr -n ${NAMESPACE} run -d \
-                                --env TZ=Asia/Shanghai \
-                                --net-host \
-                                ${FULL_IMG} \
-                                ${CONTAINER_NAME}
-
-                            # 健康检查
-                            sleep 6
-                            curl -s http://127.0.0.1:8080 > /dev/null || exit 1
-                            echo "部署完成"
-                        ''')]
-                    )]
-                )])
+                withCredentials([
+                    usernamePassword(credentialsId: 'harbor', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PWD')
+                ]) {
+                    withEnv([
+                        "HARBOR_USER=${HARBOR_USER}",
+                        "HARBOR_PWD=${HARBOR_PWD}",
+                        "FULL_IMG=${FULL_IMG}",
+                        "CONTAINER_NAME=${CONTAINER_NAME}",
+                        "NAMESPACE=${NAMESPACE}"
+                    ]) {
+                        sshPublisher(publishers: [sshPublisherDesc(
+                            configName: "${REMOTE_HOST}",
+                            transfers: [sshTransfer(
+                                postTransfers: [sshCommand(command: '''
+                                    crictl pull --auth ${HARBOR_USER}:${HARBOR_PWD} ${FULL_IMG}
+                                    
+                                    # 循环清理运行容器，kill后等待再删除
+                                    while ctr -n ${NAMESPACE} c list | grep -q ${CONTAINER_NAME}; do
+                                        ctr -n ${NAMESPACE} tasks kill ${CONTAINER_NAME} 2>/dev/null
+                                        sleep 0.5
+                                        ctr -n ${NAMESPACE} c delete ${CONTAINER_NAME} 2>/dev/null
+                                    done
+                                    # 清理残留快照，解决snapshot already exists
+                                    ctr -n ${NAMESPACE} snapshot rm ${CONTAINER_NAME} 2>/dev/null || true
+                                    
+                                    # 启动容器，TZ环境变量替代挂载localtime，规避mount报错
+                                    ctr -n ${NAMESPACE} run -d \
+                                        --env TZ=Asia/Shanghai \
+                                        --net-host \
+                                        ${FULL_IMG} \
+                                        ${CONTAINER_NAME}
+                                    
+                                    # 业务健康检查
+                                    sleep 6
+                                    curl -s http://127.0.0.1:8080 > /dev/null || exit 1
+                                    echo "【${DEPLOY_ENV}】环境部署完成"
+                                    ''')]
+                            )]
+                        )])
+                    }
+                }
             }
         }
     }
 
-    // 后置统一处理：无论成功/失败/取消都会执行，企业核心告警能力
+    // 后置统一钉钉通知，always无论成功失败都执行
     post {
         always {
-            // 钉钉统一推送Markdown通知
-            dingTalk robot: [
-                webhook: "${DING_WEBHOOK}"
-            ],
-            title: "${currentBuild.currentResult} 项目构建通知",
-            text: """
-### ${currentBuild.currentResult} - ${env.JOB_NAME} 发布结果
+            dingTalk(
+                robot: [webhook: "${DING_WEBHOOK}"],
+                title: "${currentBuild.currentResult} - ${DEPLOY_ENV}环境发布通知",
+                text: """
+### ${currentBuild.currentResult} 发布结果
 > 执行人：${env.EXECUTOR_NAME}
-> 部署环境：${params.DEPLOY_ENV}
+> 部署环境：${DEPLOY_ENV}
 
 - 构建编号：${BUILD_NUMBER}
-- Git提交号：${GIT_COMMIT}
-- 镜像版本：${IMAGE_TAG}
-- 目标服务器：${SSH_SERVER}
+- Git短提交：${env.GIT_COMMIT}
+- 镜像地址：${env.FULL_IMG}
+- 目标服务器：${REMOTE_HOST}
 - 构建耗时：${currentBuild.durationString}
 - 构建日志：[点击查看](${env.BUILD_URL})
-            """,
-            atAll: currentBuild.currentResult != 'SUCCESS' // 失败@所有人，成功不@
+""",
+                atAll: currentBuild.currentResult != 'SUCCESS'
+            )
         }
     }
 }
