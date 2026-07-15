@@ -73,7 +73,6 @@ pipeline {
         stage('4. 远程 containerd 部署') {
             steps {
                 withCredentials([
-                    usernamePassword(credentialsId: 'harbor', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PWD'),
                     sshUserPrivateKey(credentialsId: 'jenkins-ssh-remove', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
                 ]) {
                     script {
@@ -88,10 +87,8 @@ pipeline {
 NAMESPACE=k8s.io
 CONTAINER_NAME=${CONTAINER_NAME}
 FULL_IMG=${FULL_IMG}
-HARBOR_USER=${HARBOR_USER}
-HARBOR_PWD=${HARBOR_PWD}
 
-crictl pull --auth \${HARBOR_USER}:\${HARBOR_PWD} \${FULL_IMG}
+crictl pull \${FULL_IMG}
 
 while ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; do
   ctr -n \${NAMESPACE} tasks kill \${CONTAINER_NAME} 2>/dev/null
