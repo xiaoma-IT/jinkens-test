@@ -14,7 +14,7 @@ pipeline {
         FULL_IMG = "${HARBOR_ADDR}/${HARBOR_REPO}:${IMAGE_TAG}"
 
         // 部署目标机器
-        SSH_SERVER = "k8s-master01"
+        SSH_SERVER = "master01"
         CONTAINER_NAME = "pipeline-app"
         NAMESPACE = "k8s.io"
     }
