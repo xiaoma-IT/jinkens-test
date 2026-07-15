@@ -3,10 +3,6 @@ pipeline {
     agent any
     // 全局环境变量，自动读取加密凭据
     environment {
-        // 从凭据拉取Harbor账号密码，无明文
-        HARBOR_CREDS = credentials('harbor')
-        HARBOR_USER = sh(script: "echo ${HARBOR_CREDS} | cut -d: -f1", returnStdout: true).trim()
-        HARBOR_PWD = sh(script: "echo ${HARBOR_CREDS} | cut -d: -f2", returnStdout: true).trim()
         DING_WEBHOOK = credentials('dingding-webhook')
 
         // 仓库固定信息
@@ -49,7 +45,7 @@ pipeline {
         stage('2. 构建镜像 & 推送Harbor') {
             steps {
                 // 安全登录，无明文密码打印日志
-                withCredentials([string(credentialsId: 'harbor', variable: 'harborSecret')]) {
+                withCredentials([usernamePassword(credentialsId: 'harbor', passwordVariable: 'HARBOR_PWD', usernameVariable: 'HARBOR_USER')]) {
                     sh '''
                         cd demo
                         echo ${HARBOR_PWD} | docker login ${HARBOR_ADDR} -u ${HARBOR_USER} --password-stdin
