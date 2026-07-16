@@ -88,6 +88,10 @@ NAMESPACE=k8s.io
 CONTAINER_NAME=${CONTAINER_NAME}
 FULL_IMG=${FULL_IMG}
 
+echo "保存历史版本镜像"
+
+ctr -n k8s.io c list|grep ${FULL_REPO}|awk  '{print $2}' > /root/image_list.txt
+
 echo "开始拉取镜像 \${FULL_IMG}"
 crictl pull \${FULL_IMG}
 
@@ -107,6 +111,11 @@ echo "【${DEPLOY_ENV}】环境部署完成"
 """
                     }
                 }
+            }
+        }
+        stage('5. 是否回滚'){
+            steps {
+                input message: "是否回滚？",  ok: "确认回滚", abort: "取消回滚"
             }
         }
     }
