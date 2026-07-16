@@ -128,13 +128,13 @@ pipeline {
                         remote.identityFile = SSH_KEY
                         remote.allowAnyHosts = true
 
-                        sshCommand remote: remote, command: '''
+                        sshCommand remote: remote, command: """
 NAMESPACE=k8s.io
-CONTAINER_NAME=${CONTAINER_NAME}
-FULL_REPO=${FULL_REPO} 
-FULL_IMG=${FULL_IMG}
+CONTAINER_NAME=\${CONTAINER_NAME}
+FULL_REPO=\${FULL_REPO} 
+FULL_IMG=\${FULL_IMG}
 
-echo "保存历史版本镜像: ${FULL_REPO},,,,,,,,${FULL_IMG}。。。。 ${CONTAINER_NAME}"
+echo "保存历史版本镜像: \${FULL_REPO},,,,,,,,\${FULL_IMG}。。。。 \${CONTAINER_NAME}"
 
 ctr -n k8s.io c list | grep "\${FULL_REPO}" | awk '{print $2}'  > /root/image_list.txt
 
@@ -147,25 +147,25 @@ if [ ! -s /root/image_list.txt ];then
 fi
 
 echo "111111"
-echo "开始拉取镜像 ${FULL_IMG}"
-crictl pull ${FULL_IMG}
+echo "开始拉取镜像 \${FULL_IMG}"
+crictl pull \${FULL_IMG}
 echo "22222"
 
 echo "清理旧容器"
-while ctr -n ${NAMESPACE} c list | grep -q ${CONTAINER_NAME}; do
-  ctr -n ${NAMESPACE} tasks kill ${CONTAINER_NAME} 2>/dev/null
+while ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; do
+  ctr -n \${NAMESPACE} tasks kill \${CONTAINER_NAME} 2>/dev/null
   sleep 0.5
-  ctr -n ${NAMESPACE} c delete ${CONTAINER_NAME} 2>/dev/null
+  ctr -n \${NAMESPACE} c delete \${CONTAINER_NAME} 2>/dev/null
 done
-ctr -n ${NAMESPACE} snapshot rm ${CONTAINER_NAME} 2>/dev/null || true
+ctr -n \${NAMESPACE} snapshot rm \${CONTAINER_NAME} 2>/dev/null || true
 
 echo "启动业务容器"
-ctr -n ${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host ${FULL_IMG} ${CONTAINER_NAME}
+ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
 sleep 60
 curl -s http://127.0.0.1:8080 > /dev/null || exit 1
 
-echo "【${DEPLOY_ENV}】环境部署完成"
-'''
+echo "【\${DEPLOY_ENV}】环境部署完成"
+"""
                     }
                 }
             }
@@ -219,29 +219,29 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         remote.identityFile = SSH_KEY
                         remote.allowAnyHosts = true
 
-                        sshCommand remote: remote, command: '''
+                        sshCommand remote: remote, command: """
 NAMESPACE=k8s.io
-CONTAINER_NAME=${CONTAINER_NAME}
-FULL_REPO=${FULL_REPO} 
-FULL_IMG=$(cat /root/image_list.txt)
+CONTAINER_NAME=\${CONTAINER_NAME}
+FULL_REPO=\${FULL_REPO} 
+FULL_IMG=\$(cat /root/image_list.txt)
 
 echo "开始拉取镜像 ${FULL_IMG}"
-crictl pull ${FULL_IMG}
+crictl pull \${FULL_IMG}
 
 echo "清理旧容器"
-while ctr -n ${NAMESPACE} c list | grep -q ${CONTAINER_NAME}; do
-  ctr -n ${NAMESPACE} tasks kill ${CONTAINER_NAME} 2>/dev/null
+while ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; do
+  ctr -n \${NAMESPACE} tasks kill \${CONTAINER_NAME} 2>/dev/null
   sleep 0.5
-  ctr -n ${NAMESPACE} c delete ${CONTAINER_NAME} 2>/dev/null
+  ctr -n \${NAMESPACE} c delete \${CONTAINER_NAME} 2>/dev/null
 done
-ctr -n ${NAMESPACE} snapshot rm ${CONTAINER_NAME} 2>/dev/null || true
+ctr -n \${NAMESPACE} snapshot rm \${CONTAINER_NAME} 2>/dev/null || true
 
 echo "启动业务容器"
-ctr -n ${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host ${FULL_IMG} ${CONTAINER_NAME}
+ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
 sleep 60
 curl -s http://127.0.0.1:8080 > /dev/null || exit 1
-echo "【${DEPLOY_ENV}】回滚完成"
-'''
+echo "【\${DEPLOY_ENV}】回滚完成"
+"""
                     }
                 }
             }
