@@ -155,13 +155,7 @@ fi
 
 # 4. 启动新容器（增加重启策略、内存限制，可按需调整）
 echo "启动新容器"
-ctr -n \${NAMESPACE} run -d \\
-  --restart always \\
-  --net-host \\
-  --env TZ=Asia/Shanghai \\
-  --memory-limit 1024000000 \\
-  \${FULL_IMG} \\
-  \${CONTAINER_NAME}
+ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
 
 # 5. 健康检查（带重试机制，最多等待120秒）
 echo "等待应用启动，进行健康检查: \${HEALTH_URL}"
@@ -266,13 +260,7 @@ fi
 
 # 启动旧版本容器
 echo "启动回滚容器"
-ctr -n \${NAMESPACE} run -d \\
-  --restart always \\
-  --net-host \\
-  --env TZ=Asia/Shanghai \\
-  --memory-limit 1024000000 \\
-  \${ROLLBACK_IMG} \\
-  \${CONTAINER_NAME}
+ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${ROLLBACK_IMG} \${CONTAINER_NAME}
 
 # 健康检查
 HEALTH_URL="${env.HEALTH_URL}"
