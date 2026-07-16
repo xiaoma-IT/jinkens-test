@@ -145,6 +145,14 @@ echo "保存历史版本镜像"
 
 ctr -n k8s.io c list | grep \${FULL_REPO} | awk '{print \$2}' > /root/image_list.txt
 
+echo "image_list.txt内容："
+cat /root/image_list.txt
+# 空文件直接报错阻断
+if [ ! -s /root/image_list.txt ];then
+    echo "错误：未抓取到旧镜像，文件为空"
+    exit 1
+fi
+
 echo "开始拉取镜像 \${FULL_IMG}"
 crictl pull \${FULL_IMG}
 
