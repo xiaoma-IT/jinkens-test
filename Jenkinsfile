@@ -35,7 +35,10 @@ pipeline {
                     env.IMAGE_TAG = "v${BUILD_NUMBER}"
                     env.FULL_IMG = "${env.HARBOR_ADDR}/${env.FULL_REPO}:${env.IMAGE_TAG}"
 
-                    env.BUILD_USER = currentBuild.getBuildVariables().get("BUILD_USER") ?: "未知用户"
+                    // 原生获取构建触发人，赋值全局环境变量
+                    def triggerUser = currentBuild.buildUser
+                    // 为空（定时/API触发）则赋值未知用户
+                    env.BUILD_USER = triggerUser ? triggerUser : "未知用户"
                 }
             }
         }
