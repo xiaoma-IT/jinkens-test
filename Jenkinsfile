@@ -46,10 +46,10 @@ pipeline {
                     title: "流水线进度：开始Maven 编译打包",
                     text: ["""
                         ### 正在执行Maven 编译打包
-                        环境：${DEPLOY_ENV}
-                        构建号：${BUILD_NUMBER}
-                        执行人：${env.EXECUTOR_NAME}
-                        日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 环境：${DEPLOY_ENV}
+                        - 构建号：${BUILD_NUMBER}
+                        - 执行人：${env.EXECUTOR_NAME}
+                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
                         """],
                     atAll: false
                 )
@@ -68,10 +68,10 @@ pipeline {
                     title: "流水线进度：开始构建镜像 & 推送Harbor",
                     text: ["""
                         ### 正在执行构建镜像 & 推送Harbor
-                        环境：${DEPLOY_ENV}
-                        构建号：${BUILD_NUMBER}
-                        执行人：${env.EXECUTOR_NAME}
-                        日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 环境：${DEPLOY_ENV}
+                        - 构建号：${BUILD_NUMBER}
+                        - 执行人：${env.EXECUTOR_NAME}
+                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
                         """],
                     atAll: false
                 )
@@ -98,10 +98,10 @@ pipeline {
                     title: "流水线进度：发布待确认",
                     text: ["""
                         ### 发布待确认
-                        环境：${DEPLOY_ENV}
-                        构建号：${BUILD_NUMBER}
-                        执行人：${env.EXECUTOR_NAME}
-                        日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 环境：${DEPLOY_ENV}
+                        - 构建号：${BUILD_NUMBER}
+                        - 执行人：${env.EXECUTOR_NAME}
+                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
                         """],
                     atAll: false
                 )
@@ -117,10 +117,10 @@ pipeline {
                     title: "流水线进度：远程 containerd 部署",
                     text: ["""
                         ### 正在执行远程 containerd 部署
-                        环境：${DEPLOY_ENV}
-                        构建号：${BUILD_NUMBER}
-                        执行人：${env.EXECUTOR_NAME}
-                        日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 环境：${DEPLOY_ENV}
+                        - 构建号：${BUILD_NUMBER}
+                        - 执行人：${env.EXECUTOR_NAME}
+                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
                         """],
                     atAll: false
                 )
@@ -157,7 +157,9 @@ ctr -n \${NAMESPACE} snapshot rm \${CONTAINER_NAME} 2>/dev/null || true
 
 echo "启动业务容器"
 ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
+sleep 60
 curl -s http://127.0.0.1:8080 > /dev/null || exit 1
+
 echo "【${DEPLOY_ENV}】环境部署完成"
 """
                     }
@@ -172,10 +174,10 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                     title: "流水线进度：远程 containerd 部署完成，是否回滚",
                     text: ["""
                         ### 是否回滚
-                        环境：${DEPLOY_ENV}
-                        构建号：${BUILD_NUMBER}
-                        执行人：${env.EXECUTOR_NAME}
-                        日志：[点击查看](${env.BUILD_URL})
+                        - 环境：${DEPLOY_ENV}
+                        - 构建号：${BUILD_NUMBER}
+                        - 执行人：${env.EXECUTOR_NAME}
+                        - 日志：[点击查看](${env.BUILD_URL})
                         """],
                     atAll: false
                 )
@@ -201,10 +203,10 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                     title: "流水线进度：回滚上个版本",
                     text: ["""
                         ### 正在执行回滚上个版本
-                        环境：${DEPLOY_ENV}
-                        构建号：${BUILD_NUMBER}
-                        执行人：${env.EXECUTOR_NAME}
-                        日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 环境：${DEPLOY_ENV}
+                        - 构建号：${BUILD_NUMBER}
+                        - 执行人：${env.EXECUTOR_NAME}
+                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
                         """],
                     atAll: false
                 )
@@ -237,6 +239,7 @@ ctr -n \${NAMESPACE} snapshot rm \${CONTAINER_NAME} 2>/dev/null || true
 
 echo "启动业务容器"
 ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
+sleep 60
 curl -s http://127.0.0.1:8080 > /dev/null || exit 1
 echo "【${DEPLOY_ENV}】回滚完成"
 """
