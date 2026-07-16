@@ -34,6 +34,8 @@ pipeline {
                     env.GIT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     env.IMAGE_TAG = "v${BUILD_NUMBER}"
                     env.FULL_IMG = "${env.HARBOR_ADDR}/${env.FULL_REPO}:${env.IMAGE_TAG}"
+
+                    env.BUILD_USER = currentBuild.getBuildVariables().get("BUILD_USER") ?: "未知用户"
                 }
             }
         }
@@ -48,8 +50,7 @@ pipeline {
                         ### 正在执行Maven 编译打包
                         - 环境：${DEPLOY_ENV}
                         - 构建号：${BUILD_NUMBER}
-                        - 执行人：${env.EXECUTOR_NAME}
-                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 执行人：${BUILD_USER}
                         """],
                     atAll: false
                 )
@@ -70,8 +71,7 @@ pipeline {
                         ### 正在执行构建镜像 & 推送Harbor
                         - 环境：${DEPLOY_ENV}
                         - 构建号：${BUILD_NUMBER}
-                        - 执行人：${env.EXECUTOR_NAME}
-                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 执行人：${BUILD_USER}
                         """],
                     atAll: false
                 )
@@ -100,8 +100,7 @@ pipeline {
                         ### 发布待确认
                         - 环境：${DEPLOY_ENV}
                         - 构建号：${BUILD_NUMBER}
-                        - 执行人：${env.EXECUTOR_NAME}
-                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 执行人：${BUILD_USER}
                         """],
                     atAll: false
                 )
@@ -119,8 +118,7 @@ pipeline {
                         ### 正在执行远程 containerd 部署
                         - 环境：${DEPLOY_ENV}
                         - 构建号：${BUILD_NUMBER}
-                        - 执行人：${env.EXECUTOR_NAME}
-                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        - 执行人：${BUILD_USER}
                         """],
                     atAll: false
                 )
@@ -176,8 +174,7 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         ### 是否回滚
                         - 环境：${DEPLOY_ENV}
                         - 构建号：${BUILD_NUMBER}
-                        - 执行人：${env.EXECUTOR_NAME}
-                        - 日志：[点击查看](${env.BUILD_URL})
+                        - 执行人：${BUILD_USER}
                         """],
                     atAll: false
                 )
@@ -205,9 +202,7 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         ### 正在执行回滚上个版本
                         - 环境：${DEPLOY_ENV}
                         - 构建号：${BUILD_NUMBER}
-                        - 执行人：${env.EXECUTOR_NAME}
-                        - 日志：[${env.BUILD_URL}](${env.BUILD_URL})
-                        """],
+                        - 执行人：${BUILD_USER}
                     atAll: false
                 )
                 withCredentials([
@@ -259,7 +254,7 @@ echo "【${DEPLOY_ENV}】回滚完成"
                 title: "${currentBuild.currentResult} - ${DEPLOY_ENV}环境发布通知",
                 text: ["""
 ### ${currentBuild.currentResult} 发布结果
-> 执行人：${env.EXECUTOR_NAME}
+> 执行人：${BUILD_USER}
 > 部署环境：${DEPLOY_ENV}
 
 - 构建编号：${BUILD_NUMBER}
