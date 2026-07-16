@@ -203,6 +203,7 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         - 环境：${DEPLOY_ENV}
                         - 构建号：${BUILD_NUMBER}
                         - 执行人：${BUILD_USER}
+                        """]
                     atAll: false
                 )
                 withCredentials([
