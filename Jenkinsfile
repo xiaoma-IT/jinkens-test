@@ -134,7 +134,7 @@ CONTAINER_NAME=${CONTAINER_NAME}
 FULL_REPO=${FULL_REPO} 
 FULL_IMG=${FULL_IMG}
 
-echo "保存历史版本镜像"
+echo "保存历史版本镜像: ${FULL_REPO},,,,,,,,${FULL_IMG} "
 
 ctr -n k8s.io c list | grep "\${FULL_REPO}" | awk '{print $2}'  > /root/image_list.txt
 
