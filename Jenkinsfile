@@ -219,7 +219,7 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         sshCommand remote: remote, command: """
 NAMESPACE=k8s.io
 CONTAINER_NAME=${CONTAINER_NAME}
-FULL_IMG=cat /root/image_list.txt
+FULL_IMG=$(cat /root/image_list.txt)
 
 echo "开始拉取镜像 \${FULL_IMG}"
 crictl pull \${FULL_IMG}
