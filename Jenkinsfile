@@ -5,7 +5,6 @@ pipeline {
     }
 
     environment {
-        // 钉钉这里不再存webhook，全局配置机器人，env删掉DING_WEBHOOK
         HARBOR_ADDR = "192.168.120.11"
         TEST_HARBOR_REPO = "java/java-demo"
         PROD_HARBOR_REPO = "pipeline/pipeline-demo"
@@ -14,6 +13,8 @@ pipeline {
         PROD_CONTAINER_NAME = "pipeline-app"
         TEST_CONTAINER_NAME = "test-app"
         NAMESPACE = "k8s.io"
+        // 健康检查路径，根据你的应用实际情况修改
+        APP_PORT = "8080"
     }
 
     options {
@@ -34,7 +35,7 @@ pipeline {
                     env.GIT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     env.IMAGE_TAG = "v${BUILD_NUMBER}"
                     env.FULL_IMG = "${env.HARBOR_ADDR}/${env.FULL_REPO}:${env.IMAGE_TAG}"
-
+                    env.HEALTH_URL = "http://127.0.0.1:${env.APP_PORT}"
                 }
             }
         }
@@ -47,7 +48,7 @@ pipeline {
                     title: "流水线进度：开始Maven 编译打包",
                     text: ["""
 ### 正在执行Maven 编译打包
-- 环境：${DEPLOY_ENV}
+- 环境：${env.DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
 """],
                     atAll: false
@@ -67,7 +68,7 @@ pipeline {
                     title: "流水线进度：开始构建镜像 & 推送Harbor",
                     text: ["""
 ### 正在执行构建镜像 & 推送Harbor
-- 环境：${DEPLOY_ENV}
+- 环境：${env.DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
 """],
                     atAll: false
@@ -75,7 +76,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'harbor', passwordVariable: 'HARBOR_PWD', usernameVariable: 'HARBOR_USER')]) {
                     sh '''
                         cd demo
-                        echo ${HARBOR_PWD} | docker login ${HARBOR_ADDR} -u ${HARBOR_USER} --password-stdin
+                        echo "${HARBOR_PWD}" | docker login ${HARBOR_ADDR} -u ${HARBOR_USER} --password-stdin
                         docker build -t ${FULL_IMG} .
                         docker push ${FULL_IMG}
                         docker logout ${HARBOR_ADDR}
@@ -86,7 +87,7 @@ pipeline {
 
         stage('3. 生产发布确认') {
             when {
-                environment name: 'DEPLOY_ENV', value: 'prod'
+                expression { params.DEPLOY_ENV == 'prod' }
             }
             steps {
                 dingtalk(
@@ -95,12 +96,12 @@ pipeline {
                     title: "流水线进度：发布待确认",
                     text: ["""
 ### 发布待确认
-- 环境：${DEPLOY_ENV}
+- 环境：${env.DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
 """],
                     atAll: false
                 )
-                input message: "确认发布到【${DEPLOY_ENV}】环境？", ok: '确认发布'
+                input message: "确认发布到【${env.DEPLOY_ENV}】环境？", ok: '确认发布'
             }
         }
 
@@ -109,10 +110,10 @@ pipeline {
                 dingtalk(
                     robot: "jenkins",
                     type: 'MARKDOWN',
-                    title: "流水线进度：远程 containerd 111111部署",
+                    title: "流水线进度：远程 containerd 部署",
                     text: ["""
-### 正在执行远程 containerd 11111111 部署
-- 环境：${DEPLOY_ENV}
+### 正在执行远程 containerd 部署
+- 环境：${env.DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
 """],
                     atAll: false
@@ -128,81 +129,104 @@ pipeline {
                         remote.identityFile = SSH_KEY
                         remote.allowAnyHosts = true
 
+                        // 关键：所有Jenkins变量用Groovy插值直接传入远程命令，不再依赖远程环境变量
                         sshCommand remote: remote, command: """
-set -x
-NAMESPACE=k8s.io
-CONTAINER_NAME=\${CONTAINER_NAME}
-FULL_REPO=\${FULL_REPO}
-FULL_IMG=\${FULL_IMG}
+set -e
+NAMESPACE="${env.NAMESPACE}"
+CONTAINER_NAME="${env.CONTAINER_NAME}"
+FULL_IMG="${env.FULL_IMG}"
+HEALTH_URL="${env.HEALTH_URL}"
+BACKUP_FILE="/root/${env.CONTAINER_NAME}_backup_image.txt"
 
-echo "保存历史版本镜像: \${FULL_REPO},,,,,,,, \${FULL_IMG}。。。。 \${CONTAINER_NAME}"
-ctr -n k8s.io c list | grep \${FULL_REPO} | awk '{print \$2}' > /root/image_list.txt
-
-echo "image_list.txt内容："
-cat /root/image_list.txt
-if [ ! -s /root/image_list.txt ];then
-    echo "错误：未抓取到旧镜像，文件为空"
-    exit 1
+# 1. 备份当前运行的镜像（不存在则跳过，不阻断部署）
+if ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; then
+    ctr -n \${NAMESPACE} c info \${CONTAINER_NAME} | grep -oP 'image:\\s+\\K.*' > \${BACKUP_FILE}
+    echo "备份旧镜像成功: \$(cat \${BACKUP_FILE})"
+else
+    echo "无运行中容器，跳过备份"
+    echo "" > \${BACKUP_FILE}
 fi
 
-echo "111111"
-echo "开始拉取镜像 \${FULL_IMG}"
+# 2. 拉取新镜像
+echo "开始拉取新镜像: \${FULL_IMG}"
 crictl pull \${FULL_IMG}
-echo "22222"
 
-echo "清理旧容器"
-while ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; do
-  ctr -n \${NAMESPACE} tasks kill \${CONTAINER_NAME} 2>/dev/null
-  sleep 0.5
-  ctr -n \${NAMESPACE} c delete \${CONTAINER_NAME} 2>/dev/null
+# 3. 清理旧容器
+echo "清理旧容器: \${CONTAINER_NAME}"
+if ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; then
+    ctr -n \${NAMESPACE} task kill \${CONTAINER_NAME} 2>/dev/null || true
+    sleep 1
+    ctr -n \${NAMESPACE} c delete \${CONTAINER_NAME} 2>/dev/null || true
+fi
+
+# 4. 启动新容器（增加重启策略、内存限制，可按需调整）
+echo "启动新容器"
+ctr -n \${NAMESPACE} run -d \\
+  --restart always \\
+  --net-host \\
+  --env TZ=Asia/Shanghai \\
+  --memory-limit 1024000000 \\
+  \${FULL_IMG} \\
+  \${CONTAINER_NAME}
+
+# 5. 健康检查（带重试机制，最多等待120秒）
+echo "等待应用启动，进行健康检查: \${HEALTH_URL}"
+for i in {1..12}; do
+    if curl -s --connect-timeout 3 \${HEALTH_URL} > /dev/null; then
+        echo "应用启动成功，健康检查通过"
+        exit 0
+    fi
+    echo "等待10秒后重试... 第\${i}次"
+    sleep 10
 done
-ctr -n \${NAMESPACE} snapshot rm \${CONTAINER_NAME} 2>/dev/null || true
 
-echo "启动业务容器"
-ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
-sleep 60
-curl -s http://127.0.0.1:8080 > /dev/null || exit 1
-
-echo "【\${DEPLOY_ENV}】环境部署完成"
+echo "错误：健康检查失败，应用未正常启动"
+exit 1
 """
                     }
                 }
             }
         }
-        stage('5. 是否回滚'){
+
+        stage('5. 发布结果确认 & 回滚选择') {
             steps {
                 dingtalk(
                     robot: "jenkins",
                     type: 'MARKDOWN',
-                    title: "流水线进度：远程 containerd 部署完成，是否回滚",
+                    title: "流水线进度：部署完成，是否回滚",
                     text: ["""
-### 是否回滚
-- 环境：${DEPLOY_ENV}
+### 部署完成，是否回滚
+- 环境：${env.DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
+- 镜像：${env.FULL_IMG}
 """],
                     atAll: false
                 )
                 script {
-                    catchError(buildResult: 'ABORTED', stageResult: 'ABORTED') {
-                        input message: "是否回滚？", ok: "确认回滚"
-                    }
-                    // script内部才能写if判断
-                    if (currentBuild.result == 'ABORTED') {
-                        echo "用户取消回滚"
-                        error "终止流程：用户取消回滚"
+                    // 用变量标记是否回滚，替代catchError的错误写法
+                    env.SHOULD_ROLLBACK = 'false'
+                    try {
+                        input message: "部署完成，确认是否回滚？", ok: "确认回滚"
+                        env.SHOULD_ROLLBACK = 'true'
+                    } catch (e) {
+                        echo "用户选择不回滚，流水线结束"
                     }
                 }
             }
         }
+
         stage('6. 回滚上个版本') {
+            when {
+                expression { env.SHOULD_ROLLBACK == 'true' }
+            }
             steps {
                 dingtalk(
                     robot: "jenkins",
                     type: 'MARKDOWN',
-                    title: "流水线进度：回滚上个版本",
+                    title: "流水线进度：执行回滚",
                     text: ["""
 ### 正在执行回滚上个版本
-- 环境：${DEPLOY_ENV}
+- 环境：${env.DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
 """],
                     atAll: false
@@ -219,27 +243,57 @@ echo "【\${DEPLOY_ENV}】环境部署完成"
                         remote.allowAnyHosts = true
 
                         sshCommand remote: remote, command: """
-NAMESPACE=k8s.io
-CONTAINER_NAME=\${CONTAINER_NAME}
-FULL_REPO=\${FULL_REPO} 
-FULL_IMG=\$(cat /root/image_list.txt)
+set -e
+NAMESPACE="${env.NAMESPACE}"
+CONTAINER_NAME="${env.CONTAINER_NAME}"
+BACKUP_FILE="/root/${env.CONTAINER_NAME}_backup_image.txt"
 
-echo "开始拉取镜像 ${FULL_IMG}"
-crictl pull \${FULL_IMG}
+# 读取备份的旧镜像
+if [ ! -s \${BACKUP_FILE} ]; then
+    echo "错误：无备份镜像，无法回滚"
+    exit 1
+fi
+ROLLBACK_IMG=\$(cat \${BACKUP_FILE})
+echo "回滚镜像: \${ROLLBACK_IMG}"
 
-echo "清理旧容器"
-while ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; do
-  ctr -n \${NAMESPACE} tasks kill \${CONTAINER_NAME} 2>/dev/null
-  sleep 0.5
-  ctr -n \${NAMESPACE} c delete \${CONTAINER_NAME} 2>/dev/null
+# 确保镜像存在，不存在则拉取
+if ! ctr -n \${NAMESPACE} i list | grep -q \${ROLLBACK_IMG}; then
+    echo "本地无镜像，开始拉取"
+    crictl pull \${ROLLBACK_IMG}
+fi
+
+# 清理当前容器
+echo "清理当前容器"
+if ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; then
+    ctr -n \${NAMESPACE} task kill \${CONTAINER_NAME} 2>/dev/null || true
+    sleep 1
+    ctr -n \${NAMESPACE} c delete \${CONTAINER_NAME} 2>/dev/null || true
+fi
+
+# 启动旧版本容器
+echo "启动回滚容器"
+ctr -n \${NAMESPACE} run -d \\
+  --restart always \\
+  --net-host \\
+  --env TZ=Asia/Shanghai \\
+  --memory-limit 1024000000 \\
+  \${ROLLBACK_IMG} \\
+  \${CONTAINER_NAME}
+
+# 健康检查
+HEALTH_URL="${env.HEALTH_URL}"
+echo "等待回滚应用启动"
+for i in {1..12}; do
+    if curl -s --connect-timeout 3 \${HEALTH_URL} > /dev/null; then
+        echo "回滚成功，健康检查通过"
+        exit 0
+    fi
+    echo "等待10秒后重试... 第\${i}次"
+    sleep 10
 done
-ctr -n \${NAMESPACE} snapshot rm \${CONTAINER_NAME} 2>/dev/null || true
 
-echo "启动业务容器"
-ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
-sleep 60
-curl -s http://127.0.0.1:8080 > /dev/null || exit 1
-echo "【\${DEPLOY_ENV}】回滚完成"
+echo "错误：回滚后健康检查失败"
+exit 1
 """
                     }
                 }
@@ -249,25 +303,31 @@ echo "【\${DEPLOY_ENV}】回滚完成"
 
     post {
         always {
-            // ========== 钉钉插件标准正确写法 ==========
-            dingtalk(
-                // 替换成你全局钉钉配置里生成的机器人UUID
-                robot: "jenkins",
-                type: 'MARKDOWN',
-                title: "${currentBuild.currentResult} - ${DEPLOY_ENV}环境发布通知",
-                text: ["""
+            script {
+                // 防御式取值，避免变量不存在导致通知失败
+                def gitCommit = env.GIT_COMMIT ?: '未获取'
+                def fullImg = env.FULL_IMG ?: '未获取'
+                def remoteHost = env.REMOTE_HOST ?: '未获取'
+                def deployEnv = params.DEPLOY_ENV ?: '未知'
+
+                dingtalk(
+                    robot: "jenkins",
+                    type: 'MARKDOWN',
+                    title: "${currentBuild.currentResult} - ${deployEnv}环境发布通知",
+                    text: ["""
 ### ${currentBuild.currentResult} 发布结果
-> 部署环境：${DEPLOY_ENV}
+> 部署环境：${deployEnv}
 
 - 构建编号：${BUILD_NUMBER}
-- Git提交号：${env.GIT_COMMIT}
-- 镜像地址：${env.FULL_IMG}
-- 目标服务器：${REMOTE_HOST}
+- Git提交号：${gitCommit}
+- 镜像地址：${fullImg}
+- 目标服务器：${remoteHost}
 - 构建耗时：${currentBuild.durationString}
 - 构建日志：[点击查看](${env.BUILD_URL})
 """],
-                atAll: currentBuild.currentResult != 'SUCCESS'
-            )
+                    atAll: currentBuild.currentResult != 'SUCCESS'
+                )
+            }
         }
     }
 }
