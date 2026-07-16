@@ -167,7 +167,7 @@ echo "【${DEPLOY_ENV}】环境部署完成"
         stage('5. 是否回滚'){
             steps {
                 dingtalk(
-                    robot: "替换为你的钉钉机器人UUID",
+                    robot: "jenkins",
                     type: 'MARKDOWN',
                     title: "流水线进度：远程 containerd 部署完成，是否回滚",
                     text: ["""
