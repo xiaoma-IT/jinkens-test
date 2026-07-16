@@ -140,6 +140,7 @@ BACKUP_FILE="/root/${env.CONTAINER_NAME}_backup_image.txt"
 
 # 1. 备份当前运行的镜像（不存在则跳过，不阻断部署）
 ctr -n k8s.io c list|grep \${CONTAINER_NAME}|awk '{print\$2}' > \${BACKUP_FILE}
+echo "查看上个版本：\${BACKUP_FILE}"
 
 # 2. 拉取新镜像
 echo "开始拉取新镜像: \${FULL_IMG}"
