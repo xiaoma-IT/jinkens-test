@@ -167,7 +167,7 @@ echo "【${DEPLOY_ENV}】环境部署完成"
         stage('5. 是否回滚'){
             steps {
                 dingtalk(
-                    robot: "jenkins",
+                    robot: "替换为你的钉钉机器人UUID",
                     type: 'MARKDOWN',
                     title: "流水线进度：远程 containerd 部署完成，是否回滚",
                     text: ["""
@@ -175,18 +175,21 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         环境：${DEPLOY_ENV}
                         构建号：${BUILD_NUMBER}
                         执行人：${env.EXECUTOR_NAME}
-                        日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        日志：[点击查看](${env.BUILD_URL})
                         """],
                     atAll: false
                 )
-                catchError(buildResult: 'ABORTED', stageResult: 'ABORTED') {
-                    input message: "是否回滚？",  ok: "确认回滚", abort: "取消回滚"
-                }
-                if (currentBuild.currentResult == 'ABORTED') {
-                        echo "用户取消回滚"
-                        // 终止后续所有stage
+                script {
+                    catchError(buildResult: 'ABORTED', stageResult: 'ABORTED') {
+                        input message: "是否回滚？", ok: "确认回滚"
+                    }
+                    // script内部才能写if判断
+                    if (currentBuild.stageResult == 'ABORTED') {
+                        echo "用户取消回滚，终止后续流程"
                         currentBuild.result = 'ABORTED'
-                        return
+                        // 抛出异常阻断后面所有stage，post always依然执行钉钉
+                        error "用户手动取消回滚操作"
+                    }
                 }
             }
         }
