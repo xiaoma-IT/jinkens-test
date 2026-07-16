@@ -131,6 +131,7 @@ pipeline {
                         sshCommand remote: remote, command: """
 NAMESPACE=k8s.io
 CONTAINER_NAME=\${CONTAINER_NAME}
+FULL_REPO=\${FULL_REPO} 
 FULL_IMG=\${FULL_IMG}
 
 echo "保存历史版本镜像"
@@ -161,7 +162,7 @@ ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CO
 sleep 60
 curl -s http://127.0.0.1:8080 > /dev/null || exit 1
 
-echo "【${DEPLOY_ENV}】环境部署完成"
+echo "【\${DEPLOY_ENV}】环境部署完成"
 """
                     }
                 }
@@ -219,6 +220,7 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         sshCommand remote: remote, command: """
 NAMESPACE=k8s.io
 CONTAINER_NAME=\${CONTAINER_NAME}
+FULL_REPO=\${FULL_REPO} 
 FULL_IMG=\$(cat /root/image_list.txt)
 
 echo "开始拉取镜像 \${FULL_IMG}"
@@ -236,7 +238,7 @@ echo "启动业务容器"
 ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
 sleep 60
 curl -s http://127.0.0.1:8080 > /dev/null || exit 1
-echo "【${DEPLOY_ENV}】回滚完成"
+echo "【\${DEPLOY_ENV}】回滚完成"
 """
                     }
                 }
