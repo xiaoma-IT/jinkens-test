@@ -136,7 +136,7 @@ FULL_IMG=${FULL_IMG}
 
 echo "保存历史版本镜像"
 
-ctr -n k8s.io c list  | awk '{print $2}' | grep "\${FULL_REPO}" > /root/image_list.txt
+ctr -n k8s.io c list | grep "\${FULL_REPO}" | awk '{print $2}'  > /root/image_list.txt
 
 echo "image_list.txt内容："
 cat /root/image_list.txt
@@ -146,8 +146,10 @@ if [ ! -s /root/image_list.txt ];then
     exit 1
 fi
 
+echo "111111"
 echo "开始拉取镜像 ${FULL_IMG}"
 crictl pull ${FULL_IMG}
+echo "22222"
 
 echo "清理旧容器"
 while ctr -n ${NAMESPACE} c list | grep -q ${CONTAINER_NAME}; do
