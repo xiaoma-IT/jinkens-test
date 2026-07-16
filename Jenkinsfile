@@ -136,7 +136,7 @@ FULL_IMG=${FULL_IMG}
 
 echo "保存历史版本镜像"
 
-ctr -n k8s.io c list | grep ${FULL_REPO} | awk '{print $2}' > /root/image_list.txt
+ctr -n k8s.io c list  | awk '{print $2}'| grep ${FULL_REPO} > /root/image_list.txt
 
 echo "image_list.txt内容："
 cat /root/image_list.txt
