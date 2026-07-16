@@ -139,13 +139,7 @@ HEALTH_URL="${env.HEALTH_URL}"
 BACKUP_FILE="/root/${env.CONTAINER_NAME}_backup_image.txt"
 
 # 1. 备份当前运行的镜像（不存在则跳过，不阻断部署）
-if ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; then
-    ctr -n \${NAMESPACE} c info \${CONTAINER_NAME} | grep -oP 'image:\\s+\\K.*' > \${BACKUP_FILE}
-    echo "备份旧镜像成功: \$(cat \${BACKUP_FILE})"
-else
-    echo "无运行中容器，跳过备份"
-    echo "" > \${BACKUP_FILE}
-fi
+ctr -n k8s.io c list|grep \${CONTAINER_NAME}|awk '{print\$2}' > \${BACKUP_FILE}
 
 # 2. 拉取新镜像
 echo "开始拉取新镜像: \${FULL_IMG}"
