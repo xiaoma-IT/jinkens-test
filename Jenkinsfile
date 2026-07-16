@@ -47,11 +47,11 @@ pipeline {
                     type: 'MARKDOWN',
                     title: "流水线进度：开始Maven 编译打包",
                     text: ["""
-                        ### 正在执行Maven 编译打包
-                        - 环境：${DEPLOY_ENV}
-                        - 构建号：${BUILD_NUMBER}
-                        - 执行人：${BUILD_USER}
-                        """],
+### 正在执行Maven 编译打包
+- 环境：${DEPLOY_ENV}
+- 构建号：${BUILD_NUMBER}
+- 执行人：${env.BUILD_USER}
+"""],
                     atAll: false
                 )
                 sh '''
@@ -68,11 +68,11 @@ pipeline {
                     type: 'MARKDOWN',
                     title: "流水线进度：开始构建镜像 & 推送Harbor",
                     text: ["""
-                        ### 正在执行构建镜像 & 推送Harbor
-                        - 环境：${DEPLOY_ENV}
-                        - 构建号：${BUILD_NUMBER}
-                        - 执行人：${BUILD_USER}
-                        """],
+### 正在执行构建镜像 & 推送Harbor
+- 环境：${DEPLOY_ENV}
+- 构建号：${BUILD_NUMBER}
+- 执行人：${env.BUILD_USER}
+"""],
                     atAll: false
                 )
                 withCredentials([usernamePassword(credentialsId: 'harbor', passwordVariable: 'HARBOR_PWD', usernameVariable: 'HARBOR_USER')]) {
@@ -97,11 +97,11 @@ pipeline {
                     type: 'MARKDOWN',
                     title: "流水线进度：发布待确认",
                     text: ["""
-                        ### 发布待确认
-                        - 环境：${DEPLOY_ENV}
-                        - 构建号：${BUILD_NUMBER}
-                        - 执行人：${BUILD_USER}
-                        """],
+### 发布待确认
+- 环境：${DEPLOY_ENV}
+- 构建号：${BUILD_NUMBER}
+- 执行人：${env.BUILD_USER}
+"""],
                     atAll: false
                 )
                 input message: "确认发布到【${DEPLOY_ENV}】环境？", ok: '确认发布'
@@ -115,11 +115,11 @@ pipeline {
                     type: 'MARKDOWN',
                     title: "流水线进度：远程 containerd 部署",
                     text: ["""
-                        ### 正在执行远程 containerd 部署
-                        - 环境：${DEPLOY_ENV}
-                        - 构建号：${BUILD_NUMBER}
-                        - 执行人：${BUILD_USER}
-                        """],
+### 正在执行远程 containerd 部署
+- 环境：${DEPLOY_ENV}
+- 构建号：${BUILD_NUMBER}
+- 执行人：${env.BUILD_USER}
+"""],
                     atAll: false
                 )
                 withCredentials([
@@ -171,11 +171,11 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                     type: 'MARKDOWN',
                     title: "流水线进度：远程 containerd 部署完成，是否回滚",
                     text: ["""
-                        ### 是否回滚
-                        - 环境：${DEPLOY_ENV}
-                        - 构建号：${BUILD_NUMBER}
-                        - 执行人：${BUILD_USER}
-                        """],
+### 是否回滚
+- 环境：${DEPLOY_ENV}
+- 构建号：${BUILD_NUMBER}
+- 执行人：${env.BUILD_USER}
+"""],
                     atAll: false
                 )
                 script {
@@ -199,11 +199,11 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                     type: 'MARKDOWN',
                     title: "流水线进度：回滚上个版本",
                     text: ["""
-                        ### 正在执行回滚上个版本
-                        - 环境：${DEPLOY_ENV}
-                        - 构建号：${BUILD_NUMBER}
-                        - 执行人：${BUILD_USER}
-                        """],
+### 正在执行回滚上个版本
+- 环境：${DEPLOY_ENV}
+- 构建号：${BUILD_NUMBER}
+- 执行人：${env.BUILD_USER}
+"""],
                     atAll: false
                 )
                 withCredentials([
@@ -255,7 +255,7 @@ echo "【${DEPLOY_ENV}】回滚完成"
                 title: "${currentBuild.currentResult} - ${DEPLOY_ENV}环境发布通知",
                 text: ["""
 ### ${currentBuild.currentResult} 发布结果
-> 执行人：${BUILD_USER}
+> 执行人：${env.BUILD_USER}
 > 部署环境：${DEPLOY_ENV}
 
 - 构建编号：${BUILD_NUMBER}
