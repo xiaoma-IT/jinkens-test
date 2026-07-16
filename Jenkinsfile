@@ -130,8 +130,8 @@ pipeline {
 
                         sshCommand remote: remote, command: """
 NAMESPACE=k8s.io
-CONTAINER_NAME=${CONTAINER_NAME}
-FULL_IMG=${FULL_IMG}
+CONTAINER_NAME=\${CONTAINER_NAME}
+FULL_IMG=\${FULL_IMG}
 
 echo "保存历史版本镜像"
 
