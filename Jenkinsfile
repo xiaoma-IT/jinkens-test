@@ -35,10 +35,6 @@ pipeline {
                     env.IMAGE_TAG = "v${BUILD_NUMBER}"
                     env.FULL_IMG = "${env.HARBOR_ADDR}/${env.FULL_REPO}:${env.IMAGE_TAG}"
 
-                    // 原生获取构建触发人，赋值全局环境变量
-                    def triggerUser = currentBuild.buildUser
-                    // 为空（定时/API触发）则赋值未知用户
-                    env.BUILD_USER = triggerUser ? triggerUser : "未知用户"
                 }
             }
         }
@@ -53,7 +49,6 @@ pipeline {
 ### 正在执行Maven 编译打包
 - 环境：${DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
-- 执行人：${env.BUILD_USER}
 """],
                     atAll: false
                 )
@@ -74,7 +69,6 @@ pipeline {
 ### 正在执行构建镜像 & 推送Harbor
 - 环境：${DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
-- 执行人：${env.BUILD_USER}
 """],
                     atAll: false
                 )
@@ -103,7 +97,6 @@ pipeline {
 ### 发布待确认
 - 环境：${DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
-- 执行人：${env.BUILD_USER}
 """],
                     atAll: false
                 )
@@ -121,7 +114,6 @@ pipeline {
 ### 正在执行远程 containerd 部署
 - 环境：${DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
-- 执行人：${env.BUILD_USER}
 """],
                     atAll: false
                 )
@@ -185,7 +177,6 @@ echo "【${DEPLOY_ENV}】环境部署完成"
 ### 是否回滚
 - 环境：${DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
-- 执行人：${env.BUILD_USER}
 """],
                     atAll: false
                 )
@@ -211,7 +202,6 @@ echo "【${DEPLOY_ENV}】环境部署完成"
 ### 正在执行回滚上个版本
 - 环境：${DEPLOY_ENV}
 - 构建号：${BUILD_NUMBER}
-- 执行人：${env.BUILD_USER}
 """],
                     atAll: false
                 )
@@ -264,7 +254,6 @@ echo "【${DEPLOY_ENV}】回滚完成"
                 title: "${currentBuild.currentResult} - ${DEPLOY_ENV}环境发布通知",
                 text: ["""
 ### ${currentBuild.currentResult} 发布结果
-> 执行人：${env.BUILD_USER}
 > 部署环境：${DEPLOY_ENV}
 
 - 构建编号：${BUILD_NUMBER}
