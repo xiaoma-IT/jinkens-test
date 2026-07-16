@@ -183,11 +183,9 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         input message: "是否回滚？", ok: "确认回滚"
                     }
                     // script内部才能写if判断
-                    if (currentBuild.stageResult == 'ABORTED') {
-                        echo "用户取消回滚，终止后续流程"
-                        currentBuild.result = 'ABORTED'
-                        // 抛出异常阻断后面所有stage，post always依然执行钉钉
-                        error "用户手动取消回滚操作"
+                    if (currentBuild.result == 'ABORTED') {
+                        echo "用户取消回滚"
+                        error "终止流程：用户取消回滚"
                     }
                 }
             }
