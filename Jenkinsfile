@@ -129,18 +129,17 @@ pipeline {
                         remote.allowAnyHosts = true
 
                         sshCommand remote: remote, command: """
+set -x
 NAMESPACE=k8s.io
 CONTAINER_NAME=\${CONTAINER_NAME}
-FULL_REPO=\${FULL_REPO} 
+FULL_REPO=\${FULL_REPO}
 FULL_IMG=\${FULL_IMG}
 
-echo "保存历史版本镜像: \${FULL_REPO},,,,,,,,\${FULL_IMG}。。。。 \${CONTAINER_NAME}"
-
-ctr -n k8s.io c list | grep "\${FULL_REPO}" | awk '{print \$2}'  > /root/image_list.txt
+echo "保存历史版本镜像: \${FULL_REPO},,,,,,,, \${FULL_IMG}。。。。 \${CONTAINER_NAME}"
+ctr -n k8s.io c list | grep \${FULL_REPO} | awk '{print \$2}' > /root/image_list.txt
 
 echo "image_list.txt内容："
 cat /root/image_list.txt
-# 空文件直接报错阻断
 if [ ! -s /root/image_list.txt ];then
     echo "错误：未抓取到旧镜像，文件为空"
     exit 1
