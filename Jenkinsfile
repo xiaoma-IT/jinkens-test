@@ -142,7 +142,7 @@ FULL_IMG=${FULL_IMG}
 
 echo "保存历史版本镜像"
 
-ctr -n k8s.io c list|grep ${FULL_REPO}|awk  '{print $2}' > /root/image_list.txt
+ctr -n k8s.io c list | grep \${FULL_REPO} | awk '{print \$2}' > /root/image_list.txt
 
 echo "开始拉取镜像 \${FULL_IMG}"
 crictl pull \${FULL_IMG}
