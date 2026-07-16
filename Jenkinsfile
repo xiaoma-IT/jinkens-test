@@ -179,7 +179,66 @@ echo "【${DEPLOY_ENV}】环境部署完成"
                         """],
                     atAll: false
                 )
-                input message: "是否回滚？",  ok: "确认回滚", abort: "取消回滚"
+                catchError(buildResult: 'ABORTED', stageResult: 'ABORTED') {
+                    input message: "是否回滚？",  ok: "确认回滚", abort: "取消回滚"
+                }
+                if (currentBuild.currentResult == 'ABORTED') {
+                        echo "用户取消回滚"
+                        // 终止后续所有stage
+                        currentBuild.result = 'ABORTED'
+                        return
+                }
+            }
+        }
+        stage('6. 回滚上个版本') {
+            steps {
+                dingtalk(
+                    robot: "jenkins",
+                    type: 'MARKDOWN',
+                    title: "流水线进度：回滚上个版本",
+                    text: ["""
+                        ### 正在执行回滚上个版本
+                        环境：${DEPLOY_ENV}
+                        构建号：${BUILD_NUMBER}
+                        执行人：${env.EXECUTOR_NAME}
+                        日志：[${env.BUILD_URL}](${env.BUILD_URL})
+                        """],
+                    atAll: false
+                )
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'jenkins-ssh-remove', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+                ]) {
+                    script {
+                        def remote = [:]
+                        remote.name = env.REMOTE_HOST
+                        remote.host = env.REMOTE_HOST
+                        remote.user = SSH_USER
+                        remote.identityFile = SSH_KEY
+                        remote.allowAnyHosts = true
+
+                        sshCommand remote: remote, command: """
+NAMESPACE=k8s.io
+CONTAINER_NAME=${CONTAINER_NAME}
+FULL_IMG=cat /root/image_list.txt
+
+echo "开始拉取镜像 \${FULL_IMG}"
+crictl pull \${FULL_IMG}
+
+echo "清理旧容器"
+while ctr -n \${NAMESPACE} c list | grep -q \${CONTAINER_NAME}; do
+  ctr -n \${NAMESPACE} tasks kill \${CONTAINER_NAME} 2>/dev/null
+  sleep 0.5
+  ctr -n \${NAMESPACE} c delete \${CONTAINER_NAME} 2>/dev/null
+done
+ctr -n \${NAMESPACE} snapshot rm \${CONTAINER_NAME} 2>/dev/null || true
+
+echo "启动业务容器"
+ctr -n \${NAMESPACE} run -d --env TZ=Asia/Shanghai --net-host \${FULL_IMG} \${CONTAINER_NAME}
+curl -s http://127.0.0.1:8080 > /dev/null || exit 1
+echo "【${DEPLOY_ENV}】回滚完成"
+"""
+                    }
+                }
             }
         }
     }
